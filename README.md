@@ -3,8 +3,8 @@
 
 Диаграммы последовательностей:
 
-[[https://github.com/wndrws/chatTCP_linsrv/blob/master/ChatSeqDiag.png]]
-https://github.com/wndrws/chatTCP_linsrv/blob/master/ChatBotSeqDiag.png
+![Обмен сообщениями между клиентами](./ChatSeqDiag.png)
+![Обмен сообщениями с участием чат-бота для отправки всем](./ChatBotSeqDiag.png)
 
 Исходя из диаграмм можно составить следующую семантику посылок:
 
@@ -27,4 +27,4 @@ https://github.com/wndrws/chatTCP_linsrv/blob/master/ChatBotSeqDiag.png
 
 Синтаксис посылок описан на следующей схеме:
 
-https://github.com/wndrws/chatTCP_linsrv/blob/master/PacketSyntax.png
+![Синтаксис посылок](./PacketSyntax.png)
