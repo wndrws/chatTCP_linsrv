@@ -3,7 +3,7 @@
 
 Диаграммы последовательностей:
 
-https://github.com/wndrws/chatTCP_linsrv/blob/master/ChatSeqDiag.png
+[[https://github.com/wndrws/chatTCP_linsrv/blob/master/ChatSeqDiag.png]]
 https://github.com/wndrws/chatTCP_linsrv/blob/master/ChatBotSeqDiag.png
 
 Исходя из диаграмм можно составить следующую семантику посылок:
