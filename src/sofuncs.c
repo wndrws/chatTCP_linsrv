@@ -13,8 +13,8 @@ SOCKET tcp_server(char* hostname, char* portname) {
     s = socket(AF_INET, SOCK_STREAM, 0);
     if(!isvalidsock(s))
         error(1, errno, "Error in socket() call");
-    if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(optval)));
-        error(1, errno, "Error in setsockopt() call");
+    //if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char*) &optval, sizeof(optval)));
+    //    error(1, errno, "Error in setsockopt() call");
     if(bind(s, (struct sockaddr*) &local, sizeof(local)))
         error(1, errno, "Error in bind() call");
     if(listen(s, NLISTEN))
