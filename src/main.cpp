@@ -4,13 +4,15 @@
 
 #include "etcp.h"
 #include <pthread.h>
+#include <iostream>
+#include "tbb/concurrent_unordered_map.h"
 
 void server(SOCKET s, struct sockaddr_in* peerp) {
     send(s, "Hello, world!", 13, 0);
 }
 
 SOCKET listening_socket;
-
+//tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
 
 pthread_t th_listener;
 void* listener_run(void* arg) {
@@ -21,7 +23,7 @@ void* listener_run(void* arg) {
     do {
         SOCKET s1;
         peerlen = sizeof(peer);
-        s1 = accept(listening_socket, (struct sockaddr*) &peer, &peerlen);
+        s1 = accept(listening_socket, (sockaddr*) &peer, &peerlen);
         if(!isvalidsock(s1))
             error(1, errno, "Error in accept() call");
         server(s1, &peer);
@@ -47,8 +49,8 @@ int main(int argc, char** argv) {
     int arg = 6;
     pthread_create(&th_listener, NULL, listener_run, (void*) &arg);
     for( ; ; ) {
-        printf("Say something, please\n");
-        scanf("%s", str);
+        std::cout << "Say something, please\n";
+        std::cin >> str;
         if(strcmp(str, "q") == 0) break;
         printf("You've said: %s\n", str);
     }
