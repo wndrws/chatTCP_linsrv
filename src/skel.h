@@ -2,12 +2,14 @@
 // Created by user on 15.10.16.
 //
 
-#ifndef SKEL_H
-#define SKEL_H
+#pragma once
 
-/* Версия для UNIX */
-char* program_name;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+/* UNIX version */
+extern char* program_name;
 #define INIT()          ( program_name = strrchr( argv[ 0 ], '/' ) ) ? \
                         program_name++ : ( program_name = argv[ 0 ] )
 
@@ -18,4 +20,6 @@ char* program_name;
 
 typedef int SOCKET;
 
-#endif //SKEL_H
+#ifdef __cplusplus
+}
+#endif

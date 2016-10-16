@@ -2,39 +2,61 @@
 // Created by user on 16.10.16.
 //
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+char* program_name;
+#ifdef __cplusplus
+}
+#endif
+
 #include "etcp.h"
 #include <pthread.h>
 #include <iostream>
 #include "tbb/concurrent_unordered_map.h"
-
-void server(SOCKET s, struct sockaddr_in* peerp) {
-    send(s, "Hello, world!", 13, 0);
-}
+#include "ClientRec.h"
 
 SOCKET listening_socket;
-//tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
+bool stop = false;
+tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
+
+void* connectionToClient(void* sock) {
+    SOCKET s = *((SOCKET*) sock);
+    while(!clients.at(s).isToClose()) {
+        send(s, "Hello, world!\n", 13, 0);
+        sleep(1);
+    }
+    CLOSE(s);
+    pthread_exit(0);
+}
 
 pthread_t th_listener;
-void* listener_run(void* arg) {
+void* listener_run(void*) {
     printf("%s: listener thread started.", program_name);
-    printf(" Got arg %d\n", *(int*)arg);
+    SOCKET s;
     sockaddr_in peer;
-    socklen_t peerlen;
-    do {
-        SOCKET s1;
-        peerlen = sizeof(peer);
-        s1 = accept(listening_socket, (sockaddr*) &peer, &peerlen);
-        if(!isvalidsock(s1))
+    socklen_t peerlen = sizeof(peer);
+
+    for( ; ; ) {
+        s = accept(listening_socket, (sockaddr*) &peer, &peerlen);
+        if(!isvalidsock(s))
             error(1, errno, "Error in accept() call");
-        server(s1, &peer);
-        CLOSE(s1);
-    } while(1);
+        if(stop) {
+            CLOSE(s);
+            break;
+        }
+        pthread_t* pth = new pthread_t;
+        ClientRec newClient(pth, s, &peer);
+        clients[s] = newClient;
+        pthread_create(pth, NULL, connectionToClient, (void*) &s);
+    }
+    CLOSE(listening_socket);
+    pthread_exit(0);
 }
 
 int main(int argc, char** argv) {
     char* hostname;
     char* portname;
-    char str[256];
 
     INIT();
     if(argc == 2) {
@@ -46,13 +68,30 @@ int main(int argc, char** argv) {
     }
 
     listening_socket = tcp_server(hostname, portname);
-    int arg = 6;
-    pthread_create(&th_listener, NULL, listener_run, (void*) &arg);
+    pthread_create(&th_listener, NULL, listener_run, NULL);
     for( ; ; ) {
-        std::cout << "Say something, please\n";
-        std::cin >> str;
-        if(strcmp(str, "q") == 0) break;
-        printf("You've said: %s\n", str);
+        string str;
+        cout << "Say something, please\n";
+        cin >> str;
+        if(str == "q") break;
+        cout << "You've said: " << str << endl;
+    }
+    //Traverse clients calling close() on each one and joining their threads.
+    for(tbb::concurrent_unordered_map<SOCKET, ClientRec>::iterator it = clients.begin();
+            it != clients.end(); ++it) {
+        cout << "Closing socket " << it->first << endl;
+        it->second.close();
+    }
+    for(tbb::concurrent_unordered_map<SOCKET, ClientRec>::iterator it = clients.begin();
+        it != clients.end(); ++it) {
+        cout << "Joining thread " << *(it->second.getThread()) << endl;
+        int retval = 0;
+        int err = pthread_join(*(it->second.getThread()), (void**) &retval);
+        if(err != 0) {
+            cout << "Cannot join. Error: " << strerror(err) << endl;
+        }
+        cout << "Joined with exit status " << retval << endl;
+        delete it->second.getThread();
     }
     EXIT(0);
 }

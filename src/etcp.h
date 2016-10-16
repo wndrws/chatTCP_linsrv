@@ -2,8 +2,7 @@
 // Created by user on 15.10.16.
 //
 
-#ifndef ETCP_H
-#define ETCP_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,5 +60,3 @@ void set_address(char *, char *, struct sockaddr_in *, char *);
 #ifdef __cplusplus
 }
 #endif
-
-#endif //ECTP_H
