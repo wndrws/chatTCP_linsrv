@@ -5,6 +5,10 @@
 #ifndef ETCP_H
 #define ETCP_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -33,15 +37,20 @@
 #define bzero(b,n) memset( ( b ), 0, ( n ) )
 #endif
 
-typedef void ( *tofunc_t )( void * );
+typedef void ( *tofunc_t )(void *);
 
-void error(int, int, char*, ...);
-int readn(SOCKET, char*, size_t);
-int readvrec(SOCKET, char*, size_t);
+void error(int, int, const char *, ...);
+
+int readn(SOCKET, char *, size_t);
+
+int readvrec(SOCKET, char *, size_t);
+
 //int readcrlf(SOCKET, char*, size_t);
 //int readline(SOCKET, char*, size_t);
-int tcp_server(char*, char*);
-int tcp_client(char*, char*);
+int tcp_server(char *, char *);
+
+int tcp_client(char *, char *);
+
 //int udp_server(char*, char*);
 //int udp_client(char*, char*, struct sockaddr_in*);
 //int tselect(int, fd_set*, fd_set*, fd_set*);
@@ -52,6 +61,10 @@ int tcp_client(char*, char*);
 //void smbfree(void*);
 //void smbsend(SOCKET, void*);
 //void* smbrecv(SOCKET);
-void set_address(char*, char*, struct sockaddr_in*, char*);
+void set_address(char *, char *, struct sockaddr_in *, char *);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //ECTP_H

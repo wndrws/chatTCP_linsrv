@@ -1,3 +1,7 @@
+//
+// Created by user on 16.10.16.
+//
+
 #include "etcp.h"
 #include <pthread.h>
 
@@ -7,11 +11,12 @@ void server(SOCKET s, struct sockaddr_in* peerp) {
 
 SOCKET listening_socket;
 
+
 pthread_t th_listener;
 void* listener_run(void* arg) {
     printf("%s: listener thread started.", program_name);
     printf(" Got arg %d\n", *(int*)arg);
-    struct sockaddr_in peer;
+    sockaddr_in peer;
     socklen_t peerlen;
     do {
         SOCKET s1;

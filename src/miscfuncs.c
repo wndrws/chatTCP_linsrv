@@ -3,7 +3,7 @@
 //
 #include "etcp.h"
 
-void error(int status, int err, char* fmt, ... ) {
+void error(int status, int err, const char* fmt, ... ) {
     va_list ap;
     va_start(ap, fmt);
     fprintf(stderr, "%s: ", program_name);
