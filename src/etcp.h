@@ -39,8 +39,8 @@ extern "C" {
 typedef void ( *tofunc_t )(void *);
 
 void error(int, int, const char *, ...);
-int readn(SOCKET, char *, size_t);
-int readvrec(SOCKET, char *, size_t);
+int readn(SOCKET, char *, int);
+int readvrec(SOCKET, char *, int);
 //int readcrlf(SOCKET, char*, size_t);
 //int readline(SOCKET, char*, size_t);
 int tcp_server(char *, char *);

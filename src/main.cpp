@@ -22,9 +22,19 @@ tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
 
 void* connectionToClient(void* sock) {
     SOCKET s = *((SOCKET*) sock);
+    char code;
     while(!clients.at(s).isToClose()) {
-        send(s, "Hello, world!\n", 13, 0);
-        sleep(1);
+        readn(s, &code, 1);
+        switch(code) {
+            case CODE_LOGINREQUEST:
+                clients.at(s).login();
+                cout << "User " + clients.at(s).getName() + " logged in!" << endl;
+                break;
+            default:
+                send(s, "Hello, world!\n", 13, 0);
+                sleep(1);
+                break;
+        }
     }
     CLOSE(s);
     pthread_exit(0);
@@ -32,7 +42,7 @@ void* connectionToClient(void* sock) {
 
 pthread_t th_listener;
 void* listener_run(void*) {
-    printf("%s: listener thread started.", program_name);
+    printf("%s: listener thread started.\n", program_name);
     SOCKET s;
     sockaddr_in peer;
     socklen_t peerlen = sizeof(peer);

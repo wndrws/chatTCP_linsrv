@@ -6,7 +6,7 @@
 #define RECLEN_TYPE uint16_t
 
 // Прочесть len байтов из сокета sock и записать по указателю bp.
-int readn(SOCKET sock, char* bp, size_t len) {
+int readn(SOCKET sock, char* bp, int len) {
     int cnt, rc;
 
     cnt = len;
@@ -29,7 +29,7 @@ int readn(SOCKET sock, char* bp, size_t len) {
 // Прочесть из сокета sock запись переменной длины и записать по
 // по указателю bp. Максимальный размер буфера для записи равен len.
 // Максимальный размер записи определяется типом RECLEN_TYPE.
-int readvrec(SOCKET sock, char* bp, size_t len) {
+int readvrec(SOCKET sock, char* bp, int len) {
     RECLEN_TYPE reclen;
     int rc;
 
@@ -38,8 +38,8 @@ int readvrec(SOCKET sock, char* bp, size_t len) {
     // Проверка, что считалось верное число байт:
     if(rc != sizeof(RECLEN_TYPE)) return rc < 0 ? -1 : 0;
     switch (sizeof(RECLEN_TYPE)) {
-        case 2: reclen = ntohs(reclen); //uint16_t
-        case 4: reclen = ntohl(reclen); //uint32_t
+        case 2: reclen = ntohs(reclen); break; //uint16_t
+        case 4: reclen = ntohl(reclen); break; //uint32_t
         default: break;
     }
     if(reclen > len) {
