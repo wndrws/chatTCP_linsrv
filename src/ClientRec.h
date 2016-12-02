@@ -11,6 +11,7 @@
 #define CODE_SRVMSG 0
 #define CODE_LOGINREQUEST 1
 #define CODE_LOGOUTREQUEST 2
+#define CODE_LOGINANSWER 3
 
 #define MAX_USERNAME_LENGTH 32
 
@@ -23,6 +24,8 @@ private:
     volatile bool toClose = false;
     SOCKET localSocketID;
     sockaddr_in* p_remoteSocketAddr;
+
+    string formUsersList() const;
 public:
     ClientRec(pthread_t*, SOCKET, sockaddr_in*);
     //ClientRec(const ClientRec&);

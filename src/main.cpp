@@ -22,7 +22,7 @@ tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
 
 void* connectionToClient(void* sock) {
     SOCKET s = *((SOCKET*) sock);
-    char code;
+    char code = -1;
     while(!clients.at(s).isToClose()) {
         readn(s, &code, 1);
         switch(code) {
@@ -31,12 +31,19 @@ void* connectionToClient(void* sock) {
                 cout << "User " + clients.at(s).getName() + " logged in!" << endl;
                 break;
             default:
-                send(s, "Hello, world!\n", 13, 0);
+                int r = send(s, "Hello, world!\n", 13, 0);
+                if(r < 0) {
+                    if(!clients.at(s).getName().empty())
+                        cout << "User " + clients.at(s).getName() + " is gone." << endl;
+                    clients.at(s).close();
+                }
                 sleep(1);
                 break;
         }
+        code = -1;
     }
     CLOSE(s);
+    clients.unsafe_erase(s);
     pthread_exit(0);
 }
 
