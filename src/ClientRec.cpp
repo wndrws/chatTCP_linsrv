@@ -115,6 +115,7 @@ void ClientRec::sendNotifications() {
         for (int i = 0; i < loggedIn.size(); i += 2) {
             ss << loggedIn[i] << '\n' << loggedIn[i + 1] << '\n';
         }
+        ss << "\4\n"; //End Of Transmission
         msg = ss.str();
         msg.insert(0, 1, (char) CODE_LOGINNOTIFY);
         r = send(m_id, msg.c_str(), msg.size(), 0);
@@ -129,6 +130,7 @@ void ClientRec::sendNotifications() {
         for (int i = 0; i < loggedOut.size(); i++) {
             ss << loggedOut[i] << '\n';
         }
+        ss << "\4\n"; //End Of Transmission
         msg = ss.str();
         msg.insert(0, 1, (char) CODE_LOGOUTNOTIFY);
         r = send(m_id, msg.c_str(), msg.size(), 0);
