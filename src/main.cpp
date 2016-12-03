@@ -22,6 +22,8 @@ bool stop = false;
 tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
 static CAutoMutex mutex;
 
+int findClient(string IDorName);
+
 void* connectionToClient(void* sock) {
     SOCKET s = *((SOCKET*) sock);
     char code = -1;
@@ -133,29 +135,19 @@ int main(int argc, char** argv) {
         if(str == "q") break;
         if(str.at(0) == 'b') {
             string userToBan = str.substr(2);
-            unsigned int pos = userToBan.find('#');
-            if(pos != string::npos) {
-                // This is ID
-                int id = atoi(userToBan.substr(pos+1));
-                auto it = clients.find(id);
-                if(it != clients.cend()) {
-                    it->second.forcedLogout();
-                    it->second.close();
-                } else {
-                    cout << "User with id " << id << " not found." << endl;
-                }
-            } else {
-                auto it = clients.cbegin();
-                for( ; it != clients.cend(); ++it) {
-                    if(it->second.getName() == userToBan) {
-                        it->second.forcedLogout();
-                        it->second.close();
-                        break;
-                    }
-                }
-                if(it == clients.cend()) {
-                    cout << "User \"" + userToBan + "\" not found." << endl;
-                }
+            int id = findClient(userToBan);
+            if(id != -1) {
+                clients.at(id).forcedLogout();
+                clients.at(id).close();
+            }
+        } else if(str.at(0) == 'm') {
+            string userToInform = str.substr(2);
+            int id = findClient(userToInform);
+            if(id != -1) {
+                string msg;
+                cout << "Type message for " << userToInform << ":" << endl;
+                cin >> msg;
+                clients.at(id).sendMsg(msg);
             }
         }
         else cout << "You've said: " << str << endl;
@@ -176,4 +168,29 @@ int main(int argc, char** argv) {
         delete it->second.getThread();
     }
     EXIT(0);
+}
+
+int findClient(string IDorName) {
+    unsigned int pos = IDorName.find('#');
+    if(pos != string::npos) {
+        // This is ID
+        int id = atoi(IDorName.substr(pos+1).c_str());
+        auto it = clients.find(id);
+        if(it != clients.cend()) {
+            return it->first;
+        } else {
+            cout << "User with id " << id << " not found." << endl;
+        }
+    } else {
+        auto it = clients.cbegin();
+        for( ; it != clients.cend(); ++it) {
+            if(it->second.getName() == IDorName) {
+                return it->first;
+            }
+        }
+        if(it == clients.cend()) {
+            cout << "User \"" + IDorName + "\" not found." << endl;
+        }
+    }
+    return -1;
 }
