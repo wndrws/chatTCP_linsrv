@@ -15,35 +15,63 @@ char* program_name;
 #include <iostream>
 #include "tbb/concurrent_unordered_map.h"
 #include "ClientRec.h"
+#include "automutex.h"
 
 SOCKET listening_socket;
 bool stop = false;
 tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
+static CAutoMutex mutex;
 
 void* connectionToClient(void* sock) {
     SOCKET s = *((SOCKET*) sock);
     char code = -1;
+    int id = 0;
+    string name = "<unknown>";
+    tbb::concurrent_unordered_map<SOCKET, ClientRec>::const_iterator it;
+
     while(!clients.at(s).isToClose()) {
         readn(s, &code, 1);
         switch(code) {
             case CODE_LOGINREQUEST:
                 clients.at(s).login();
-                cout << "User " + clients.at(s).getName() + " logged in!" << endl;
+                id = clients.at(s).getLocalSocketID();
+                name = clients.at(s).getName();
+                cout << "User " + name + "#" + to_string(id) + " logged in!" << endl;
+                for(it = clients.cbegin(); it != clients.cend(); ++it) {
+                    if(it->first != s) it->second.notifyIn(id, name);
+                }
+                break;
+            case CODE_LOGOUTREQUEST:
+                clients.at(s).logout();
+                cout << "User " + name + "#" + to_string(id) + " logged out!" << endl;
+                for(it = clients.cbegin(); it != clients.cend(); ++it) {
+                    if(it->first != s) it->second.notifyOut(id);
+                }
+                clients.at(s).close();
                 break;
             default:
+                // Send heartbeat
                 int r = send(s, "Hello, world!\n", 13, 0);
                 if(r < 0) {
                     if(!clients.at(s).getName().empty())
-                        cout << "User " + clients.at(s).getName() + " is gone." << endl;
+                        cout << "User " + name + "#" + to_string(id) + " is gone." << endl;
+                    for(it = clients.cbegin(); it != clients.cend(); ++it) {
+                        if(it->first != s) it->second.notifyOut(id);
+                    }
                     clients.at(s).close();
                 }
                 sleep(1);
                 break;
         }
         code = -1;
+        clients.at(s).sendNotifications();
     }
+    shutdown(s, SHUT_RDWR);
     CLOSE(s);
-    clients.unsafe_erase(s);
+    {
+        SCOPE_LOCK_MUTEX(mutex.get());
+        clients.unsafe_erase(s);
+    }
     pthread_exit(0);
 }
 
@@ -91,16 +119,41 @@ int main(int argc, char** argv) {
         cout << "Say something, please\n";
         cin >> str;
         if(str == "q") break;
-        cout << "You've said: " << str << endl;
+        if(str.at(0) == 'b') {
+            string userToBan = str.substr(2);
+            unsigned int pos = userToBan.find('#');
+            if(pos != string::npos) {
+                // This is ID
+                int id = atoi(userToBan.substr(pos+1));
+                auto it = clients.find(id);
+                if(it != clients.cend()) {
+                    it->second.forcedLogout();
+                    it->second.close();
+                } else {
+                    cout << "User with id " << id << " not found." << endl;
+                }
+            } else {
+                auto it = clients.cbegin();
+                for( ; it != clients.cend(); ++it) {
+                    if(it->second.getName() == userToBan) {
+                        it->second.forcedLogout();
+                        it->second.close();
+                        break;
+                    }
+                }
+                if(it == clients.cend()) {
+                    cout << "User \"" + userToBan + "\" not found." << endl;
+                }
+            }
+        }
+        else cout << "You've said: " << str << endl;
     }
     //Traverse clients calling close() on each one and joining their threads.
-    for(tbb::concurrent_unordered_map<SOCKET, ClientRec>::iterator it = clients.begin();
-            it != clients.end(); ++it) {
+    for(auto&& it = clients.begin(); it != clients.end(); ++it) {
         cout << "Closing socket " << it->first << endl;
         it->second.close();
     }
-    for(tbb::concurrent_unordered_map<SOCKET, ClientRec>::iterator it = clients.begin();
-        it != clients.end(); ++it) {
+    for(auto&& it = clients.begin(); it != clients.end(); ++it) {
         cout << "Joining thread " << *(it->second.getThread()) << endl;
         int retval = 0;
         int err = pthread_join(*(it->second.getThread()), (void**) &retval);
