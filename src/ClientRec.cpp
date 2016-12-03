@@ -64,7 +64,7 @@ void ClientRec::login() {
     char username [MAX_USERNAME_LENGTH+1];
     int r = readvrec(m_id, username, MAX_USERNAME_LENGTH);
     if(r == -1) {
-        cout << "Error while reading request for login." << endl;
+        cerr << "Error while reading request for login." << endl;
         return;
     }
     username[r] = '\0';
@@ -76,7 +76,7 @@ void ClientRec::login() {
     //msg.insert(1, (char*) &len, 2);
     r = send(m_id, msg.c_str(), msg.size(), 0);
     if(r == -1) {
-        cout << "Failed to send users list to " << getFullName() << endl;
+        cerr << "Failed to send users list to " << getFullName() << endl;
     }
 }
 
@@ -103,7 +103,7 @@ void ClientRec::notifyOut(int id) {
 void ClientRec::sendNotifications() {
     if(!notified) return;
     if(loggedIn.empty() && loggedOut.empty()) {
-        cout << "Error: notified by nobody." << endl;
+        cerr << "Error: notified by nobody." << endl;
         return;
     }
 
@@ -119,7 +119,7 @@ void ClientRec::sendNotifications() {
         msg.insert(0, 1, (char) CODE_LOGINNOTIFY);
         r = send(m_id, msg.c_str(), msg.size(), 0);
         if (r == -1) {
-            cout << "Failed to send login notification to " << getFullName() << endl;
+            cerr << "Failed to send login notification to " << getFullName() << endl;
         } else loggedIn.clear();
 
         ss.str("");
@@ -133,7 +133,7 @@ void ClientRec::sendNotifications() {
         msg.insert(0, 1, (char) CODE_LOGOUTNOTIFY);
         r = send(m_id, msg.c_str(), msg.size(), 0);
         if (r == -1) {
-            cout << "Failed to send logout notification to " << getFullName() << endl;
+            cerr << "Failed to send logout notification to " << getFullName() << endl;
         } else loggedOut.clear();
     }
     notified = false;
@@ -143,7 +143,7 @@ void ClientRec::logout() const {
     char code = CODE_LOGOUTANSWER;
     int r = send(m_id, &code, 1, 0);
     if(r == -1) {
-        cout << "Failed to send logout answer to " << getFullName() << endl;
+        cerr << "Failed to send logout answer to " << getFullName() << endl;
     }
 }
 
@@ -151,7 +151,7 @@ void ClientRec::forcedLogout() const {
     char code = CODE_FORCEDLOGOUT;
     int r = send(m_id, &code, 1, 0);
     if(r == -1) {
-        cout << "Failed to send forced logout message to " << getFullName();
+        cerr << "Failed to send forced logout message to " << getFullName();
     }
     cout << "User " << getFullName() << " was logged out by force." << endl;
 }
@@ -163,7 +163,7 @@ void ClientRec::sendErrorMsg(int errcode, const string& descr) const {
     msg.insert(1, (char*) &len, 2);
     int r = send(m_id, msg.c_str(), msg.size(), 0);
     if(r == -1) {
-        cout << "Failed to send error message to " << getFullName() << endl;
+        cerr << "Failed to send error message to " << getFullName() << endl;
     }
 }
 
@@ -174,6 +174,6 @@ void ClientRec::sendMsg(const string &text) const {
     msg.insert(1, (char*) &len, 2);
     int r = send(m_id, msg.c_str(), msg.size(), 0);
     if(r == -1) {
-        cout << "Failed to send message to " << getFullName() << endl;
+        cerr << "Failed to send message to " << getFullName() << endl;
     }
 }
