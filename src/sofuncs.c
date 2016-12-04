@@ -35,7 +35,7 @@ SOCKET tcp_client(char* hostname, char* portname) {
     return s;
 }
 
-/*static?*/ void set_address(char* hostname, char* portname,
+static void set_address(char* hostname, char* portname,
                              struct sockaddr_in *sap, char* protocol) {
     struct servent *sp;
     struct hostent *hp;

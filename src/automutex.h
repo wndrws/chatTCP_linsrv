@@ -44,7 +44,7 @@ public:
     // освобождаем мютекс при удалении объекта
     ~CMutexLock() {
         const int res = pthread_mutex_unlock(&m_mutex);
-        assert(res == 0);
+        //assert(res == 0);
     }
 };
 

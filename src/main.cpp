@@ -34,12 +34,24 @@ void* connectionToClient(void* sock) {
     while(!clients.at(s).isToClose()) {
         rcvdb = readn(s, &code, 1);
         if(rcvdb == 0) {
+            for (it = clients.cbegin(); it != clients.cend(); ++it) {
+                if (it->first != s) it->second.notifyOut(id);
+            }
             clients.at(s).close();
             cout << "User " + name+"#"+to_string(id) + " disconnected gracefully." << endl;
         } else if(rcvdb < 0) {
-            cerr << "Error: reading from socket " << s << endl;
-            cerr << "Disconnecting..." << endl;
-            clients.at(s).close();
+            int error = errno;
+            if(error == EWOULDBLOCK || error == EAGAIN || error == EINTR) {
+                // It's ok, continue doing job after some time
+                usleep(200000); // sleep for 0.2 seconds
+            } else {
+                cerr << "Error: reading from socket " << s << endl;
+                cerr << "Disconnecting..." << endl;
+                for (it = clients.cbegin(); it != clients.cend(); ++it) {
+                    if (it->first != s) it->second.notifyOut(id);
+                }
+                clients.at(s).close();
+            }
         } else {
             switch (code) {
                 case CODE_LOGINREQUEST:
@@ -73,9 +85,9 @@ void* connectionToClient(void* sock) {
                     sleep(1);
                     break;
             }
-            code = -1;
-            clients.at(s).sendNotifications();
         }
+        code = -1;
+        clients.at(s).sendNotifications();
     }
     shutdown(s, SHUT_RDWR);
     cerr << "Info: Socket " << s << " is shut down." << endl;
@@ -97,7 +109,8 @@ void* listener_run(void*) {
     socklen_t peerlen = sizeof(peer);
 
     for( ; ; ) {
-        s = accept(listening_socket, (struct sockaddr*) &peer, &peerlen);
+        // Accept clients to non-blocking sockets
+        s = accept4(listening_socket, (struct sockaddr*) &peer, &peerlen, SOCK_NONBLOCK);
         if(!isvalidsock(s))
             error(1, errno, "Error in accept() call");
         if(stop) {
@@ -133,15 +146,17 @@ int main(int argc, char** argv) {
         cout << "Say something, please\n";
         cin >> str;
         if(str == "q") break;
-        if(str.at(0) == 'b') {
-            string userToBan = str.substr(2);
+        else if(str == "b") {
+            string userToBan;
+            cin >> userToBan;
             int id = findClient(userToBan);
             if(id != -1) {
                 clients.at(id).forcedLogout();
                 clients.at(id).close();
             }
-        } else if(str.at(0) == 'm') {
-            string userToInform = str.substr(2);
+        } else if(str == "m") {
+            string userToInform;
+            cin >> userToInform;
             int id = findClient(userToInform);
             if(id != -1) {
                 string msg;

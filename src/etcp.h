@@ -55,7 +55,7 @@ int tcp_client(char *, char *);
 //void smbfree(void*);
 //void smbsend(SOCKET, void*);
 //void* smbrecv(SOCKET);
-void set_address(char *, char *, struct sockaddr_in *, char *);
+static void set_address(char *, char *, struct sockaddr_in *, char *);
 
 #ifdef __cplusplus
 }
