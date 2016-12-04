@@ -26,6 +26,8 @@
 
 using namespace std;
 
+enum NotificationType { LOGIN, LOGOUT };
+
 class ClientRec {
 private:
     string m_name = "";
@@ -34,9 +36,9 @@ private:
     SOCKET m_id;
     sockaddr_in* p_sockaddr_in;
 
-    volatile bool notified = false;
-    vector<string> loggedIn;
-    vector<string> loggedOut;
+    volatile bool m_notified = false;
+    vector<string> m_loggedIn;
+    vector<string> m_loggedOut;
 
     string formUsersList() const;
 public:
@@ -49,6 +51,8 @@ public:
     SOCKET getLocalSocketID() const;
     sockaddr_in* getSockaddr_in() const;
     bool isToClose() const;
+
+    inline void notify(NotificationType) const;
 
     void close();
     void setName(const string&);

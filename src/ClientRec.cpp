@@ -78,11 +78,12 @@ void ClientRec::login() {
     if(r == -1) {
         cerr << "Failed to send users list to " << getFullName() << endl;
     }
+    notify(NotificationType::LOGIN);
 }
 
 string ClientRec::formUsersList() const {
     ostringstream ss;
-    for(auto&& it = clients.cbegin(); it != clients.cend(); ++it) {
+    for(auto it = clients.cbegin(); it != clients.cend(); ++it) {
         ss << (uint32_t) it->first << '\n' << it->second.getName() << '\n';
     }
     ss << "\4\n"; //End Of Transmission
@@ -90,19 +91,31 @@ string ClientRec::formUsersList() const {
 }
 
 void ClientRec::notifyIn(int id, const string& name) {
-    notified = true;
-    loggedIn.push_back(to_string(id));
-    loggedIn.push_back(name);
+    m_notified = true;
+    m_loggedIn.push_back(to_string(id));
+    m_loggedIn.push_back(name);
 }
 
 void ClientRec::notifyOut(int id) {
-    notified = true;
-    loggedOut.push_back(to_string(id));
+    m_notified = true;
+    m_loggedOut.push_back(to_string(id));
+}
+
+inline void ClientRec::notify(NotificationType nt) const {
+    for (auto it = clients.cbegin(); it != clients.cend(); ++it) {
+        if (it->first != m_id) { // Without this condition function won't be const
+            switch (nt) {
+                case LOGIN: it->second.notifyIn(m_id, m_name); break;
+                case LOGOUT: it->second.notifyOut(m_id); break;
+                default: cerr << "Illegal argument for notify()" << endl; return;
+            }
+        }
+    }
 }
 
 void ClientRec::sendNotifications() {
-    if(!notified) return;
-    if(loggedIn.empty() && loggedOut.empty()) {
+    if(!m_notified) return;
+    if(m_loggedIn.empty() && m_loggedOut.empty()) {
         cerr << "Error: notified by nobody." << endl;
         return;
     }
@@ -111,9 +124,9 @@ void ClientRec::sendNotifications() {
     string msg;
     int r;
 
-    if(!loggedIn.empty()) {
-        for (int i = 0; i < loggedIn.size(); i += 2) {
-            ss << loggedIn[i] << '\n' << loggedIn[i + 1] << '\n';
+    if(!m_loggedIn.empty()) {
+        for (int i = 0; i < m_loggedIn.size(); i += 2) {
+            ss << m_loggedIn[i] << '\n' << m_loggedIn[i + 1] << '\n';
         }
         ss << "\4\n"; //End Of Transmission
         msg = ss.str();
@@ -121,14 +134,14 @@ void ClientRec::sendNotifications() {
         r = send(m_id, msg.c_str(), msg.size(), 0);
         if (r == -1) {
             cerr << "Failed to send login notification to " << getFullName() << endl;
-        } else loggedIn.clear();
+        } else m_loggedIn.clear();
 
         ss.str("");
     }
 
-    if(!loggedOut.empty()) {
-        for (int i = 0; i < loggedOut.size(); i++) {
-            ss << loggedOut[i] << '\n';
+    if(!m_loggedOut.empty()) {
+        for (int i = 0; i < m_loggedOut.size(); i++) {
+            ss << m_loggedOut[i] << '\n';
         }
         ss << "\4\n"; //End Of Transmission
         msg = ss.str();
@@ -136,9 +149,9 @@ void ClientRec::sendNotifications() {
         r = send(m_id, msg.c_str(), msg.size(), 0);
         if (r == -1) {
             cerr << "Failed to send logout notification to " << getFullName() << endl;
-        } else loggedOut.clear();
+        } else m_loggedOut.clear();
     }
-    notified = false;
+    m_notified = false;
 }
 
 void ClientRec::logout() const {
@@ -147,6 +160,7 @@ void ClientRec::logout() const {
     if(r == -1) {
         cerr << "Failed to send logout answer to " << getFullName() << endl;
     }
+    notify(NotificationType::LOGOUT);
 }
 
 void ClientRec::forcedLogout() const {
@@ -155,6 +169,7 @@ void ClientRec::forcedLogout() const {
     if(r == -1) {
         cerr << "Failed to send forced logout message to " << getFullName();
     }
+    notify(NotificationType::LOGOUT);
     cout << "User " << getFullName() << " was logged out by force." << endl;
 }
 

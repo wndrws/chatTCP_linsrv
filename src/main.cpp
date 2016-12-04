@@ -34,9 +34,7 @@ void* connectionToClient(void* sock) {
     while(!clients.at(s).isToClose()) {
         rcvdb = readn(s, &code, 1);
         if(rcvdb == 0) {
-            for (it = clients.cbegin(); it != clients.cend(); ++it) {
-                if (it->first != s) it->second.notifyOut(id);
-            }
+            clients.at(s).notify(NotificationType::LOGOUT);
             clients.at(s).close();
             cout << "User " + name+"#"+to_string(id) + " disconnected gracefully." << endl;
         } else if(rcvdb < 0) {
@@ -47,9 +45,7 @@ void* connectionToClient(void* sock) {
             } else {
                 cerr << "Error: reading from socket " << s << endl;
                 cerr << "Disconnecting..." << endl;
-                for (it = clients.cbegin(); it != clients.cend(); ++it) {
-                    if (it->first != s) it->second.notifyOut(id);
-                }
+                clients.at(s).notify(NotificationType::LOGOUT);
                 clients.at(s).close();
             }
         } else {
@@ -59,16 +55,10 @@ void* connectionToClient(void* sock) {
                     id = clients.at(s).getLocalSocketID();
                     name = clients.at(s).getName();
                     cout << "User " + name+"#"+to_string(id) + " logged in!" << endl;
-                    for (it = clients.cbegin(); it != clients.cend(); ++it) {
-                        if (it->first != s) it->second.notifyIn(id, name);
-                    }
                     break;
                 case CODE_LOGOUTREQUEST:
                     clients.at(s).logout();
                     cout << "User " + name+"#"+to_string(id) + " logged out!" << endl;
-                    for (it = clients.cbegin(); it != clients.cend(); ++it) {
-                        if (it->first != s) it->second.notifyOut(id);
-                    }
                     clients.at(s).close();
                     break;
                 default:
@@ -77,9 +67,7 @@ void* connectionToClient(void* sock) {
                     if (r < 0) {
                         if (!clients.at(s).getName().empty())
                             cout << "User " + name+"#"+to_string(id) + " is gone." << endl;
-                        for (it = clients.cbegin(); it != clients.cend(); ++it) {
-                            if (it->first != s) it->second.notifyOut(id);
-                        }
+                        clients.at(s).notify(NotificationType::LOGOUT);
                         clients.at(s).close();
                     }
                     sleep(1);
@@ -144,25 +132,25 @@ int main(int argc, char** argv) {
     for( ; ; ) {
         string str;
         cout << "Say something, please\n";
-        cin >> str;
+        getline(cin, str);
         if(str == "q") break;
-        else if(str == "b") {
-            string userToBan;
-            cin >> userToBan;
-            int id = findClient(userToBan);
-            if(id != -1) {
-                clients.at(id).forcedLogout();
-                clients.at(id).close();
-            }
-        } else if(str == "m") {
-            string userToInform;
-            cin >> userToInform;
-            int id = findClient(userToInform);
-            if(id != -1) {
-                string msg;
-                cout << "Type message for " << userToInform << ":" << endl;
-                cin >> msg;
-                clients.at(id).sendMsg(msg);
+        else if(str.length() > 2) {
+            if (str.at(0) == 'b') {
+                string userToBan = str.substr(2);
+                int id = findClient(userToBan);
+                if (id != -1) {
+                    clients.at(id).forcedLogout();
+                    clients.at(id).close();
+                }
+            } else if (str.at(0) == 'm') {
+                string userToInform = str.substr(2);
+                int id = findClient(userToInform);
+                if (id != -1) {
+                    string msg;
+                    cout << "Type message for " << userToInform << ":" << endl;
+                    getline(cin, msg);
+                    clients.at(id).sendMsg(msg);
+                }
             }
         }
         else cout << "You've said: " << str << endl;
