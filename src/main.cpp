@@ -156,19 +156,20 @@ int main(int argc, char** argv) {
         else cout << "You've said: " << str << endl;
     }
     //Traverse clients calling close() on each one and joining their threads.
-    for(auto&& it = clients.begin(); it != clients.end(); ++it) {
-        cout << "Closing socket " << it->first << endl;
-        it->second.close();
+    for(auto&& client : clients) {
+        client.second.forcedLogout();
+        cout << "Closing socket " << client.first << endl;
+        client.second.close();
     }
-    for(auto&& it = clients.begin(); it != clients.end(); ++it) {
-        cout << "Joining thread " << *(it->second.getThread()) << endl;
+    for(auto&& client : clients) {
+        cout << "Joining thread " << *(client.second.getThread()) << endl;
         int retval = 0;
-        int err = pthread_join(*(it->second.getThread()), (void**) &retval);
+        int err = pthread_join(*(client.second.getThread()), (void**) &retval);
         if(err != 0) {
             cerr << "Cannot join. Error: " << strerror(err) << endl;
         }
         cout << "Joined with exit status " << retval << endl;
-        delete it->second.getThread();
+        delete client.second.getThread();
     }
     EXIT(0);
 }
