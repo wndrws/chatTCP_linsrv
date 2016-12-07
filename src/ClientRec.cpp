@@ -15,13 +15,6 @@ ClientRec::ClientRec(pthread_t* p_thread, SOCKET s, sockaddr_in* addr) {
     p_sockaddr_in = addr;
 }
 
-//ClientRec::ClientRec(const ClientRec &obj) {
-//    m_name = obj.getName();
-//    p_thread = obj.getThread();
-//    m_id = obj.getLocalSocketID();
-//    p_sockaddr_in = obj.getSockaddr_in();
-//}
-
 ClientRec::ClientRec() {
     p_thread = NULL;
     p_sockaddr_in = NULL;
@@ -48,7 +41,7 @@ pthread_t * ClientRec::getThread() const{
     return p_thread;
 }
 
-SOCKET ClientRec::getLocalSocketID() const {
+SOCKET ClientRec::getSocketID() const {
     return m_id;
 }
 
@@ -62,7 +55,7 @@ bool ClientRec::isToClose() const {
 
 void ClientRec::login() {
     char username [MAX_USERNAME_LENGTH+1];
-    int r = readvrec(m_id, username, MAX_USERNAME_LENGTH);
+    int r = readvrec(getSocketID(), username, MAX_USERNAME_LENGTH);
     if(r == -1) {
         cerr << "Error while reading request for login." << endl;
         return;
@@ -74,7 +67,7 @@ void ClientRec::login() {
     //uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     msg.insert(0, 1, (char) CODE_LOGINANSWER);
     //msg.insert(1, (char*) &len, 2);
-    r = send(m_id, msg.c_str(), msg.size(), 0);
+    r = send(getSocketID(), msg.c_str(), msg.size(), 0);
     if(r == -1) {
         cerr << "Failed to send users list to " << getFullName() << endl;
     }
@@ -131,7 +124,7 @@ void ClientRec::sendNotifications() {
         ss << "\4\n"; //End Of Transmission
         msg = ss.str();
         msg.insert(0, 1, (char) CODE_LOGINNOTIFY);
-        r = send(m_id, msg.c_str(), msg.size(), 0);
+        r = send(getSocketID(), msg.c_str(), msg.size(), 0);
         if (r == -1) {
             cerr << "Failed to send login notification to " << getFullName() << endl;
         } else m_loggedIn.clear();
@@ -146,7 +139,7 @@ void ClientRec::sendNotifications() {
         ss << "\4\n"; //End Of Transmission
         msg = ss.str();
         msg.insert(0, 1, (char) CODE_LOGOUTNOTIFY);
-        r = send(m_id, msg.c_str(), msg.size(), 0);
+        r = send(getSocketID(), msg.c_str(), msg.size(), 0);
         if (r == -1) {
             cerr << "Failed to send logout notification to " << getFullName() << endl;
         } else m_loggedOut.clear();
@@ -156,7 +149,7 @@ void ClientRec::sendNotifications() {
 
 void ClientRec::logout() const {
     char code = CODE_LOGOUTANSWER;
-    int r = send(m_id, &code, 1, 0);
+    int r = send(getSocketID(), &code, 1, 0);
     if(r == -1) {
         cerr << "Failed to send logout answer to " << getFullName() << endl;
     }
@@ -165,7 +158,7 @@ void ClientRec::logout() const {
 
 void ClientRec::forcedLogout() const {
     char code = CODE_FORCEDLOGOUT;
-    int r = send(m_id, &code, 1, 0);
+    int r = send(getSocketID(), &code, 1, 0);
     if(r == -1) {
         cerr << "Failed to send forced logout message to " << getFullName();
     }
@@ -178,7 +171,7 @@ void ClientRec::sendErrorMsg(int errcode, const string& descr) const {
     uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     msg.insert(0, 1, (char) CODE_SRVERR);
     msg.insert(1, (char*) &len, 2);
-    int r = send(m_id, msg.c_str(), msg.size(), 0);
+    int r = send(getSocketID(), msg.c_str(), msg.size(), 0);
     if(r == -1) {
         cerr << "Failed to send error message to " << getFullName() << endl;
     }
@@ -189,8 +182,40 @@ void ClientRec::sendMsg(const string &text) const {
     uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     msg.insert(0, 1, (char) CODE_SRVMSG);
     msg.insert(1, (char*) &len, 2);
-    int r = send(m_id, msg.c_str(), msg.size(), 0);
+    int r = send(getSocketID(), msg.c_str(), msg.size(), 0);
     if(r == -1) {
         cerr << "Failed to send message to " << getFullName() << endl;
     }
+}
+
+bool ClientRec::transmitMsg() const {
+    char buf [MAX_MSG_LENGTH+1];
+    char id_buf [11]; //max 10 digits in a 32-bit id + '\n'
+    int id;
+
+    int r = readline(getSocketID(), id_buf, sizeof(id_buf));
+    if(r < 0) {
+        cerr << "Failed to extract user id from incoming message from "
+             << getFullName() << endl;
+    }
+    id = atoi(id_buf);
+    r = readvrec(getSocketID(), buf, sizeof(buf));
+    if(r <= 0) {
+        cerr << "Failed to read incoming message from " << getFullName() << endl;
+        return false;
+    }
+
+    if(clients.find(id) == clients.cend()) return false;
+
+    string msg(buf);
+    uint16_t len = (uint16_t) htons((uint16_t) msg.size());
+    msg.insert(0, (char*) &len, 2);
+    msg = to_string(id) + "\n" + msg;
+    msg.insert(0, 1, (char) CODE_OUTMSG);
+    r = send(getSocketID(), msg.c_str(), msg.size(), 0);
+    if(r == -1) {
+        cerr << "Failed to transmit message to " << clients.at(id).getFullName() << endl;
+        return false;
+    }
+    return true;
 }

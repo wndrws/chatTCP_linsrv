@@ -23,6 +23,7 @@
 #define CODE_OUTMSG 129
 
 #define MAX_USERNAME_LENGTH 32
+#define MAX_MSG_LENGTH 65535
 
 using namespace std;
 
@@ -48,7 +49,7 @@ public:
     string getName() const;
     string getFullName() const;
     pthread_t * getThread() const;
-    SOCKET getLocalSocketID() const;
+    SOCKET getSocketID() const;
     sockaddr_in* getSockaddr_in() const;
     bool isToClose() const;
 
@@ -64,4 +65,5 @@ public:
     void sendNotifications();
     void sendErrorMsg(int errcode, const string& descr) const;
     void sendMsg(const string& text) const;
+    bool transmitMsg() const;
 };

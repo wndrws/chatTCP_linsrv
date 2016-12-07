@@ -26,13 +26,13 @@ int findClient(string IDorName);
 
 void* connectionToClient(void* sock) {
     SOCKET s = *((SOCKET*) sock);
-    char code = -1;
+    unsigned char code = 255;
     int rcvdb, id = 0;
     string name = "<unknown>";
     tbb::concurrent_unordered_map<SOCKET, ClientRec>::const_iterator it;
 
     while(!clients.at(s).isToClose()) {
-        rcvdb = readn(s, &code, 1);
+        rcvdb = readn(s, (char*) &code, 1);
         if(rcvdb == 0) {
             clients.at(s).notify(NotificationType::LOGOUT);
             clients.at(s).close();
@@ -52,7 +52,7 @@ void* connectionToClient(void* sock) {
             switch (code) {
                 case CODE_LOGINREQUEST:
                     clients.at(s).login();
-                    id = clients.at(s).getLocalSocketID();
+                    id = clients.at(s).getSocketID();
                     name = clients.at(s).getName();
                     cout << "User " + name+"#"+to_string(id) + " logged in!" << endl;
                     break;
@@ -61,6 +61,10 @@ void* connectionToClient(void* sock) {
                     cout << "User " + name+"#"+to_string(id) + " logged out!" << endl;
                     clients.at(s).close();
                     break;
+                case CODE_INMSG:
+                    if(!clients.at(s).transmitMsg()) {
+                        clients.at(s).sendErrorMsg(42, "Failed to transmit the message");
+                    }
                 default:
                     // Send heartbeat
                     int r = send(s, "Hello, world!\n", 13, 0);
@@ -74,7 +78,7 @@ void* connectionToClient(void* sock) {
                     break;
             }
         }
-        code = -1;
+        code = 255;
         clients.at(s).sendNotifications();
     }
     shutdown(s, SHUT_RDWR);
