@@ -188,7 +188,7 @@ void ClientRec::sendMsg(const string &text) const {
     }
 }
 
-bool ClientRec::transmitMsg() const {
+int ClientRec::transmitMsg() const {
     char buf [MAX_MSG_LENGTH+1];
     char id_buf [11]; //max 10 digits in a 32-bit id + '\n'
     int id;
@@ -202,10 +202,10 @@ bool ClientRec::transmitMsg() const {
     r = readline(getSocketID(), buf, sizeof(buf));
     if(r <= 0) {
         cerr << "Failed to read incoming message from " << getFullName() << endl;
-        return false;
+        return -1;
     }
 
-    if(clients.find(id) == clients.cend()) return false;
+    if(clients.find(id) == clients.cend()) return -2;
 
     string msg(buf);
     //uint16_t len = (uint16_t) htons((uint16_t) msg.size());
@@ -215,6 +215,16 @@ bool ClientRec::transmitMsg() const {
     r = send(clients.at(id).getSocketID(), msg.c_str(), msg.size(), 0);
     if(r == -1) {
         cerr << "Failed to transmit message to " << clients.at(id).getFullName() << endl;
+        return -3;
+    }
+    return 0;
+}
+
+bool ClientRec::sendHeartbeat() const {
+    char code = CODE_HEARTBEAT;
+    int r = send(getSocketID(), &code, 1, 0);
+    if(r < 0) {
+        cerr << "Failed to send heartbeat to " << getFullName() << ": " << strerror(errno) << endl;
         return false;
     }
     return true;

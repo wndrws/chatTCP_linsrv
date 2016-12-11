@@ -65,5 +65,6 @@ public:
     void sendNotifications();
     void sendErrorMsg(int errcode, const string& descr) const;
     void sendMsg(const string& text) const;
-    bool transmitMsg() const;
+    int transmitMsg() const;
+    bool sendHeartbeat() const;
 };

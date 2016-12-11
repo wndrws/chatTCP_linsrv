@@ -27,7 +27,7 @@ int findClient(string IDorName);
 void* connectionToClient(void* sock) {
     SOCKET s = *((SOCKET*) sock);
     unsigned char code = 255;
-    int rcvdb, id = 0;
+    int rcvdb, r, id = 0;
     string name = "<unknown>";
     tbb::concurrent_unordered_map<SOCKET, ClientRec>::const_iterator it;
     int mode = 0;
@@ -49,7 +49,8 @@ void* connectionToClient(void* sock) {
                 usleep(200000); // sleep for 0.2 seconds
             } else {
                 cerr << "Error: reading from socket " << s << endl;
-                cerr << "Disconnecting..." << endl;
+                if (!clients.at(s).getName().empty())
+                    cerr << "User " + name+"#"+to_string(id) + " is gone." << endl;
                 clients.at(s).notify(NotificationType::LOGOUT);
                 clients.at(s).close();
             }
@@ -69,20 +70,22 @@ void* connectionToClient(void* sock) {
                     clients.at(s).close();
                     break;
                 case CODE_INMSG:
-                    if(!clients.at(s).transmitMsg()) {
-                        clients.at(s).sendErrorMsg(42, "Failed to transmit the message");
+                    r = clients.at(s).transmitMsg();
+                    if(r < 0) {
+                        if(r == -2) clients.at(s).sendMsg("Message is not delivered - destination user is offline");
+                        else clients.at(s).sendErrorMsg(42, "Failed to transmit the message");
                     }
                     break;
-                default:
-                    // Send heartbeat
-                    int r = send(s, "Hello, world!\n", 13, 0);
-                    if (r < 0) {
-                        if (!clients.at(s).getName().empty())
-                            cout << "User " + name+"#"+to_string(id) + " is gone." << endl;
+                case CODE_HEARTBEAT:
+                    // Send heartbeat in answer
+                    if(!clients.at(s).sendHeartbeat()) {
+                        cerr << "User " + name+"#"+to_string(id) + " is gone." << endl;
                         clients.at(s).notify(NotificationType::LOGOUT);
                         clients.at(s).close();
                     }
-                    sleep(1);
+                    break;
+                default:
+                    cerr << "Info: Incorrect packet code received from socket " << s << endl;
                     break;
             }
         }
@@ -141,11 +144,19 @@ int main(int argc, char** argv) {
 
     listening_socket = tcp_server(hostname, portname);
     pthread_create(&th_listener, NULL, listener_run, NULL);
+    cout << "Waiting for commands (type \"help\" for more information):" << endl;
     for( ; ; ) {
         string str;
-        cout << "Say something, please\n";
         getline(cin, str);
         if(str == "q") break;
+        else if(str == "help") {
+            cout << "Command list:" << endl
+                 << "m <username> - send server message to user <username>." << endl
+                 << "b <username> - ban user <username> (force to logout)." << endl
+                 << "q - force to logout all users and shut down the server." << endl
+                 << "help - display this command list." << endl << endl
+                 << "<username> ::= nickname_of_user | #user_id" << endl << endl;
+        }
         else if(str.length() > 2) {
             if (str.at(0) == 'b') {
                 string userToBan = str.substr(2);
@@ -165,7 +176,7 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        else cout << "You've said: " << str << endl;
+        else cout << "Unknown command (type \"help\" for more information): " << str << endl;
     }
     //Traverse clients calling close() on each one and joining their threads.
     for(auto&& client : clients) {
