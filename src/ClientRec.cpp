@@ -199,7 +199,7 @@ bool ClientRec::transmitMsg() const {
              << getFullName() << endl;
     }
     id = atoi(id_buf);
-    r = readvrec(getSocketID(), buf, sizeof(buf));
+    r = readline(getSocketID(), buf, sizeof(buf));
     if(r <= 0) {
         cerr << "Failed to read incoming message from " << getFullName() << endl;
         return false;
@@ -208,11 +208,11 @@ bool ClientRec::transmitMsg() const {
     if(clients.find(id) == clients.cend()) return false;
 
     string msg(buf);
-    uint16_t len = (uint16_t) htons((uint16_t) msg.size());
-    msg.insert(0, (char*) &len, 2);
-    msg = to_string(id) + "\n" + msg;
+    //uint16_t len = (uint16_t) htons((uint16_t) msg.size());
+    //msg.insert(0, (char*) &len, 2);
+    msg = to_string(getSocketID()) + "\n" + msg; // Already contains trailing "\n"
     msg.insert(0, 1, (char) CODE_OUTMSG);
-    r = send(getSocketID(), msg.c_str(), msg.size(), 0);
+    r = send(clients.at(id).getSocketID(), msg.c_str(), msg.size(), 0);
     if(r == -1) {
         cerr << "Failed to transmit message to " << clients.at(id).getFullName() << endl;
         return false;

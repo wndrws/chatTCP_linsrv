@@ -66,7 +66,7 @@ int readline(SOCKET sock, char* bufptr, int len) {
     char* bufx = bufptr;
     static char* bp;
     static int cnt = 0;
-    static char b[1500];
+    static char b[65536];
     char c;
 
     while (--len > 0) {

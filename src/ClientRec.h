@@ -23,7 +23,7 @@
 #define CODE_OUTMSG 129
 
 #define MAX_USERNAME_LENGTH 32
-#define MAX_MSG_LENGTH 65535
+#define MAX_MSG_LENGTH 60000
 
 using namespace std;
 

@@ -30,8 +30,13 @@ void* connectionToClient(void* sock) {
     int rcvdb, id = 0;
     string name = "<unknown>";
     tbb::concurrent_unordered_map<SOCKET, ClientRec>::const_iterator it;
+    int mode = 0;
 
     while(!clients.at(s).isToClose()) {
+        if(mode == 0) {
+            mode = 1;
+            fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK); // Make socket non-blocking
+        }
         rcvdb = readn(s, (char*) &code, 1);
         if(rcvdb == 0) {
             clients.at(s).notify(NotificationType::LOGOUT);
@@ -49,6 +54,8 @@ void* connectionToClient(void* sock) {
                 clients.at(s).close();
             }
         } else {
+            mode = 0;
+            fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) & !O_NONBLOCK); // Make socket blocking again
             switch (code) {
                 case CODE_LOGINREQUEST:
                     clients.at(s).login();
@@ -65,6 +72,7 @@ void* connectionToClient(void* sock) {
                     if(!clients.at(s).transmitMsg()) {
                         clients.at(s).sendErrorMsg(42, "Failed to transmit the message");
                     }
+                    break;
                 default:
                     // Send heartbeat
                     int r = send(s, "Hello, world!\n", 13, 0);
@@ -101,8 +109,8 @@ void* listener_run(void*) {
     socklen_t peerlen = sizeof(peer);
 
     for( ; ; ) {
-        // Accept clients to non-blocking sockets
-        s = accept4(listening_socket, (struct sockaddr*) &peer, &peerlen, SOCK_NONBLOCK);
+        // Accept clients to blocking sockets
+        s = accept(listening_socket, (struct sockaddr*) &peer, &peerlen);
         if(!isvalidsock(s))
             error(1, errno, "Error in accept() call");
         if(stop) {
