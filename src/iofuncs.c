@@ -11,7 +11,7 @@ int readn(SOCKET sock, char* bp, int len) {
 
     cnt = len;
     while(cnt > 0) {
-        rc = recv(sock, bp, cnt, 0);
+        rc = recv(sock, bp, (size_t) cnt, 0);
         if(rc < 0) {                // Ошибка чтения?..
             if(errno == EINTR)      // Или вызов был прерван?
                 continue;           // Повторить чтение
@@ -64,31 +64,49 @@ int readvrec(SOCKET sock, char* bp, int len) {
 // Максимальный размер буфера для записи равен len.
 int readline(SOCKET sock, char* bufptr, int len) {
     char* bufx = bufptr;
-    static char* bp;
-    static int cnt = 0;
-    static char b[65536];
+    int cnt = 0;
+    //static char* bp;
+    //static int cnt = 0;
+    //static char b[65536];
     char c;
 
     while (--len > 0) {
-        if(--cnt <= 0) {
-            cnt = recv(sock, b, sizeof(b), 0);
-            if(cnt < 0) {
-                if(errno == EINTR) {
-                    len++; /* Уменьшим на 1 в заголовке while. */
-                    continue;
-                }
-                return -1;
+        cnt = recv(sock, &c, 1, 0);
+        if (cnt < 0) {
+            if (errno == EINTR) {
+                len++; /* Уменьшим на 1 в заголовке while. */
+                continue;
             }
-            if(cnt == 0) return 0;
-            bp = b;
+            return -1;
         }
-        c = *bp++;
+        if (cnt == 0) return 0;
         *bufptr++ = c;
-        if(c == '\n') {
+        if (c == '\n') {
             *bufptr = '\0';
-            return bufptr - bufx;
+            return (int) (bufptr - bufx);
         }
     }
+
+//    while (--len > 0) {
+//        if(--cnt <= 0) {
+//            cnt = recv(sock, b, sizeof(b), 0);
+//            if(cnt < 0) {
+//                if(errno == EINTR) {
+//                    len++; /* Уменьшим на 1 в заголовке while. */
+//                    continue;
+//                }
+//                return -1;
+//            }
+//            if(cnt == 0) return 0;
+//            bp = b;
+//        }
+//        c = *bp++;
+//        *bufptr++ = c;
+//        if(c == '\n') {
+//            *bufptr = '\0';
+//            return bufptr - bufx;
+//        }
+//    }
     set_errno(EMSGSIZE);
     return -1;
 }
