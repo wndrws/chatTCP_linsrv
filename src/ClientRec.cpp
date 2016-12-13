@@ -7,17 +7,19 @@
 #include <iostream>
 #include "ClientRec.h"
 
-extern tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
+extern tbb::concurrent_unordered_map<int, ClientRec> clients;
 
 ClientRec::ClientRec(pthread_t* p_thread, SOCKET s, sockaddr_in* addr) {
     this->p_thread = p_thread;
-    m_id = s;
+    m_sock = s;
     p_sockaddr_in = addr;
+    m_id = idCounter++;
 }
 
 ClientRec::ClientRec() {
     p_thread = NULL;
     p_sockaddr_in = NULL;
+    m_sock = 0;
     m_id = 0;
 }
 
@@ -42,6 +44,10 @@ pthread_t * ClientRec::getThread() const{
 }
 
 SOCKET ClientRec::getSocketID() const {
+    return m_sock;
+}
+
+int ClientRec::getClientID() const {
     return m_id;
 }
 
@@ -161,6 +167,7 @@ void ClientRec::forcedLogout() const {
     int r = send(getSocketID(), &code, 1, 0);
     if(r == -1) {
         cerr << "Failed to send forced logout message to " << getFullName();
+        cerr << strerror(errno);
     }
     notify(NotificationType::LOGOUT);
     cout << "User " << getFullName() << " was logged out by force." << endl;
@@ -185,6 +192,7 @@ void ClientRec::sendMsg(const string &text) const {
     int r = send(getSocketID(), msg.c_str(), msg.size(), 0);
     if(r == -1) {
         cerr << "Failed to send message to " << getFullName() << endl;
+        cerr << strerror(errno);
     }
 }
 
@@ -210,7 +218,7 @@ int ClientRec::transmitMsg() const {
     string msg(buf);
     //uint16_t len = (uint16_t) htons((uint16_t) msg.size());
     //msg.insert(0, (char*) &len, 2);
-    msg = to_string(getSocketID()) + "\n" + msg; // Already contains trailing "\n"
+    msg = to_string(getClientID()) + "\n" + msg; // Already contains trailing "\n"
     msg.insert(0, 1, (char) CODE_OUTMSG);
     r = send(clients.at(id).getSocketID(), msg.c_str(), msg.size(), 0);
     if(r == -1) {

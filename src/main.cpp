@@ -19,28 +19,29 @@ char* program_name;
 
 SOCKET listening_socket;
 bool stop = false;
-tbb::concurrent_unordered_map<SOCKET, ClientRec> clients;
+tbb::concurrent_unordered_map<int, ClientRec> clients;
 static CAutoMutex mutex;
 
 int findClient(string IDorName);
 
-void* connectionToClient(void* sock) {
-    SOCKET s = *((SOCKET*) sock);
+void* connectionToClient(void* clientID) {
+    int id = *((int*) clientID);
+    SOCKET s = clients.at(id).getSocketID();
     unsigned char code = 255;
-    int rcvdb, r, id = 0;
+    int rcvdb, r;
     string name = "<unknown>";
-    tbb::concurrent_unordered_map<SOCKET, ClientRec>::const_iterator it;
+    tbb::concurrent_unordered_map<int, ClientRec>::const_iterator it;
     int mode = 0;
 
-    while(!clients.at(s).isToClose()) {
+    while(!clients.at(id).isToClose()) {
         if(mode == 0) {
             mode = 1;
             fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK); // Make socket non-blocking
         }
         rcvdb = readn(s, (char*) &code, 1);
         if(rcvdb == 0) {
-            clients.at(s).notify(NotificationType::LOGOUT);
-            clients.at(s).close();
+            clients.at(id).notify(NotificationType::LOGOUT);
+            clients.at(id).close();
             cout << "User " + name+"#"+to_string(id) + " disconnected gracefully." << endl;
         } else if(rcvdb < 0) {
             int error = errno;
@@ -49,39 +50,38 @@ void* connectionToClient(void* sock) {
                 usleep(200000); // sleep for 0.2 seconds
             } else {
                 cerr << "Error: reading from socket " << s << endl;
-                if (!clients.at(s).getName().empty())
+                if (!clients.at(id).getName().empty())
                     cerr << "User " + name+"#"+to_string(id) + " is gone." << endl;
-                clients.at(s).notify(NotificationType::LOGOUT);
-                clients.at(s).close();
+                clients.at(id).notify(NotificationType::LOGOUT);
+                clients.at(id).close();
             }
         } else {
             mode = 0;
             fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) & !O_NONBLOCK); // Make socket blocking again
             switch (code) {
                 case CODE_LOGINREQUEST:
-                    clients.at(s).login();
-                    id = clients.at(s).getSocketID();
-                    name = clients.at(s).getName();
+                    clients.at(id).login();
+                    name = clients.at(id).getName();
                     cout << "User " + name+"#"+to_string(id) + " logged in!" << endl;
                     break;
                 case CODE_LOGOUTREQUEST:
-                    clients.at(s).logout();
+                    clients.at(id).logout();
                     cout << "User " + name+"#"+to_string(id) + " logged out!" << endl;
-                    clients.at(s).close();
+                    clients.at(id).close();
                     break;
                 case CODE_INMSG:
-                    r = clients.at(s).transmitMsg();
+                    r = clients.at(id).transmitMsg();
                     if(r < 0) {
-                        if(r == -2) clients.at(s).sendMsg("Message is not delivered - destination user is offline");
-                        else clients.at(s).sendErrorMsg(42, "Failed to transmit the message");
+                        if(r == -2) clients.at(id).sendMsg("Message is not delivered - destination user is offline");
+                        else clients.at(id).sendErrorMsg(42, "Failed to transmit the message");
                     }
                     break;
                 case CODE_HEARTBEAT:
                     // Send heartbeat in answer
-                    if(!clients.at(s).sendHeartbeat()) {
+                    if(!clients.at(id).sendHeartbeat()) {
                         cerr << "User " + name+"#"+to_string(id) + " is gone." << endl;
-                        clients.at(s).notify(NotificationType::LOGOUT);
-                        clients.at(s).close();
+                        clients.at(id).notify(NotificationType::LOGOUT);
+                        clients.at(id).close();
                     }
                     break;
                 default:
@@ -90,7 +90,7 @@ void* connectionToClient(void* sock) {
             }
         }
         code = 255;
-        clients.at(s).sendNotifications();
+        clients.at(id).sendNotifications();
     }
     shutdown(s, SHUT_RDWR);
     cerr << "Info: Socket " << s << " is shut down." << endl;
@@ -98,9 +98,9 @@ void* connectionToClient(void* sock) {
     cerr << "Info: Socket " << s << " is closed." << endl;
     {
         SCOPE_LOCK_MUTEX(mutex.get());
-        clients.unsafe_erase(s);
+        clients.unsafe_erase(id);
     }
-    cerr << "Info: Client at socket " << s << " is erased from users list." << endl;
+    cerr << "Info: Client with id " << id << " at socket " << s << " is erased from users list." << endl;
     pthread_exit(0);
 }
 
@@ -122,8 +122,9 @@ void* listener_run(void*) {
         }
         pthread_t* pth = new pthread_t;
         ClientRec newClient(pth, s, &peer);
-        clients[s] = newClient;
-        pthread_create(pth, NULL, connectionToClient, (void*) &s);
+        int newClientID = newClient.getClientID();
+        clients[newClientID] = newClient;
+        pthread_create(pth, NULL, connectionToClient, (void*) &newClientID);
     }
     CLOSE(listening_socket);
     pthread_exit(0);

@@ -28,12 +28,14 @@
 using namespace std;
 
 enum NotificationType { LOGIN, LOGOUT };
+static int idCounter = 1;
 
 class ClientRec {
 private:
     string m_name = "";
     pthread_t* p_thread;
     volatile bool toClose = false;
+    SOCKET m_sock;
     SOCKET m_id;
     sockaddr_in* p_sockaddr_in;
 
@@ -50,6 +52,7 @@ public:
     string getFullName() const;
     pthread_t * getThread() const;
     SOCKET getSocketID() const;
+    int getClientID() const;
     sockaddr_in* getSockaddr_in() const;
     bool isToClose() const;
 
