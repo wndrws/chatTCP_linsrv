@@ -36,7 +36,7 @@ private:
     pthread_t* p_thread;
     volatile bool toClose = false;
     SOCKET m_sock;
-    SOCKET m_id;
+    int m_id;
     sockaddr_in* p_sockaddr_in;
 
     volatile bool m_notified = false;
