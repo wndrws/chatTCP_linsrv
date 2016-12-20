@@ -61,12 +61,12 @@ bool ClientRec::isToClose() const {
 
 void ClientRec::login() {
     char username [MAX_USERNAME_LENGTH+1];
-    int r = readvrec(getSocketID(), username, MAX_USERNAME_LENGTH);
+    int r = readline(getSocketID(), username, MAX_USERNAME_LENGTH);
     if(r == -1) {
         cerr << "Error while reading request for login." << endl;
         return;
     }
-    username[r] = '\0';
+    username[r-1] = '\0';
     setName(string(username));
     //Send users list
     string msg = formUsersList();
